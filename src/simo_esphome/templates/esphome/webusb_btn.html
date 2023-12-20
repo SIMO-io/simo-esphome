@@ -1,0 +1,14 @@
+<esp-web-install-button show-log manifest="/media/esphome/{{ esp_device.name }}_manifest_{{ esp_device.compiled_version }}.json">
+  <button slot="activate" class="button default">
+      {% if esp_device.installed_version %}
+        Update via USB / View Logs
+      {% else %}
+        Install via USB / View Logs
+      {% endif %}
+  </button>
+  <span slot="unsupported">Ah snap, your browser doesn't work!</span>
+  <span slot="not-allowed">Ah snap, you are not allowed to use this on HTTP!</span>
+</esp-web-install-button>
+<script>
+    var esp_device_id = {{ esp_device.id }};
+</script>

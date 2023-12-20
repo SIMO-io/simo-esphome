@@ -1,0 +1,6 @@
+{% if obj.connected %}
+    <i class="fas fa-wifi" style="color:green"></i>
+    {% if obj.signal_strength %}{{ obj.signal_strength }}%{% endif %}
+{% else %}
+    <i class="fas fa-wifi-slash" style="color:red"></i>
+{% endif %}
