@@ -7,7 +7,7 @@ from simo.core.controllers import (
     ControllerBase, BinarySensor, NumericSensor, Switch, Dimmer, MultiSensor,
     RGBWLight
 )
-from simo.core.events import ObjectCommand
+from simo.core.events import GatewayObjectCommand
 from simo.core.app_widgets import BaseAppWidget
 from simo.core.utils.helpers import heat_index
 from simo.generic.controllers import Gate
@@ -171,7 +171,10 @@ class ESPSwitch(Switch):
         return yaml.safe_dump(data, indent=4, sort_keys=False)
 
     def _send_to_device(self, value):
-        ObjectCommand(self.component, **{'state': value}).publish()
+        GatewayObjectCommand(
+            self.component.gateway,
+            self.component, send={'state': value}
+        ).publish()
 
     def _receive_from_device(self, data):
         self.set(data['state'].state)
@@ -212,8 +215,9 @@ class ESPPWMOutput(Dimmer):
         conf = self.component.config
         com_amplitude = conf.get('max', 1.0) - conf.get('min', 0.0)
         float_value = com_amplitude * value - conf.get('min', 0.0)
-        ObjectCommand(
-            self.component, **{'state': True, 'brightness': float_value}
+        GatewayObjectCommand(
+            self.component.gateway, self.component,
+            send={'state': True, 'brightness': float_value}
         ).publish()
 
     def _receive_from_device(self, data):
@@ -258,8 +262,9 @@ class ACDimmer(Dimmer):
         conf = self.component.config
         com_amplitude = conf.get('max', 1.0) - conf.get('min', 0.0)
         float_value = com_amplitude * value - conf.get('min', 0.0)
-        ObjectCommand(
-            self.component, **{'state': True, 'brightness': float_value}
+        GatewayObjectCommand(
+            self.component.gateway, self.component,
+            send={'state': True, 'brightness': float_value}
         ).publish()
 
     def _receive_from_device(self, data):
@@ -429,7 +434,9 @@ class AddressableRGBW(RGBWLight):
         else:
             if value == '#000000':
                 send_data['state'] = False
-        ObjectCommand(self.component, **send_data).publish()
+        GatewayObjectCommand(
+            self.component.gateway, self.component, send=send_data
+        ).publish()
 
 
 class ESPGate(Gate):
@@ -486,12 +493,18 @@ class ESPGate(Gate):
     def _send_to_device(self, value):
         self.component.refresh_from_db()
         if self.component.config.get('action_method') == 'click':
-            ObjectCommand(self.component, **{'state': True}).publish()
+            GatewayObjectCommand(
+                self.component.gateway, self.component, send={'state': True}
+            ).publish()
         else:
             if self.component.value.startswith('open'):
-                ObjectCommand(self.component, **{'state': False}).publish()
+                GatewayObjectCommand(
+                    self.component.gateway, self.component, send={'state': False}
+                ).publish()
             else:
-                ObjectCommand(self.component, **{'state': True}).publish()
+                GatewayObjectCommand(
+                    self.component.gateway, self.component, send={'state': True}
+                ).publish()
 
     def _receive_from_device(self, data):
         if data['info'].object_id == 'simo_%s_switch' % str(self.component.id):
@@ -587,10 +600,12 @@ class ESPGeneric(ControllerBase):
         return self.component.config.get('yaml_config', '')
 
     def _send_to_device(self, value):
-        from simo.core.events import ObjectCommand
+        from simo.core.events import GatewayObjectCommand
         if not isinstance(value, dict):
             value = {'state': value}
-        ObjectCommand(self.component, **value).publish()
+        GatewayObjectCommand(
+            self.component.gateway, self.component, send=value
+        ).publish()
 
     def _receive_from_device(self, data):
         self.set(data['state'].state)

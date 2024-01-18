@@ -6,11 +6,11 @@ from django.db.models.signals import pre_delete, post_save
 from django.dispatch import receiver
 from django.conf import settings
 from simo.core.models import Gateway, Component
-from simo.core.events import ObjectManagementEvent
 from simo.core.utils.mixins import SimoAdminMixin
 from simo.core.utils.helpers import get_random_string
 from esphome.components.esp32.boards import ESP32_BOARD_PINS
 from esphome.components.esp8266.boards import ESP8266_BOARD_PINS
+from .events import ESPManagementEvent
 from .utils import get_last_wifi_ssid, get_last_wifi_password, build_config
 
 
@@ -160,7 +160,7 @@ def post_device_save(sender, instance, created=None, *args, **kwargs):
 
         def post_create():
             print("FIRE CREATE EVENT!")
-            ObjectManagementEvent(instance, 'added').publish()
+            ESPManagementEvent(instance, 'added').publish()
         transaction.on_commit(post_create)
 
 

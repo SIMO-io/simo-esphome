@@ -13,8 +13,9 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from simo.core.gateways import BaseGatewayHandler
 from simo.core.forms import BaseGatewayForm
-from simo.core.events import ObjectCommand, ObjectManagementEvent, get_event_obj
+from simo.core.events import GatewayObjectCommand, get_event_obj
 from simo.core.models import Component
+from .events import ESPManagementEvent
 from .models import ESPDevice
 
 
@@ -168,8 +169,9 @@ class ESPHomeGatewayHandler(BaseGatewayHandler):
     async def handle_devices(self):
 
         def on_mqtt_connect(mqtt_client, userdata, flags, rc):
-            mqtt_client.subscribe(ObjectCommand.TOPIC)
-            mqtt_client.subscribe(ObjectManagementEvent.TOPIC)
+            command_event = GatewayObjectCommand(self.gateway_instance)
+            mqtt_client.subscribe(command_event.get_topic())
+            mqtt_client.subscribe(ESPManagementEvent.TOPIC)
 
         self.mqtt_client = mqtt.Client()
         self.mqtt_client.on_connect = on_mqtt_connect
@@ -200,7 +202,7 @@ class ESPHomeGatewayHandler(BaseGatewayHandler):
 
     def on_mqtt_message(self, client, userdata, msg):
         payload = json.loads(msg.payload)
-        if msg.topic == ObjectManagementEvent.TOPIC:
+        if msg.topic == ESPManagementEvent.TOPIC:
             esp_device = get_event_obj(payload, ESPDevice)
             if not esp_device:
                 return
@@ -209,10 +211,8 @@ class ESPHomeGatewayHandler(BaseGatewayHandler):
                     asyncio.run(self.watch_device(esp_device))
                 threading.Thread(target=run_watchdog_in_thread, daemon=True).start()
 
-        elif msg.topic == ObjectCommand.TOPIC:
+        else:
             component = get_event_obj(payload, Component)
-            if not component or component.gateway.type != self.uid:
-                return
             ctrl = self.component_to_esp.get(component.id)
             if not ctrl:
                 return
@@ -220,6 +220,6 @@ class ESPHomeGatewayHandler(BaseGatewayHandler):
             if ctrl['command']:
                 asyncio.run(
                     getattr(ctrl['api'], ctrl['command'])(
-                        ctrl['entity_info'].key, **payload['kwargs']
+                        ctrl['entity_info'].key, **payload['send']
                     )
                 )
